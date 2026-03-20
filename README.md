@@ -1,5 +1,7 @@
 # strongswan-docker
 
+[English](README.md) | [Русский](README.ru.md)
+
 A production-ready Docker image for running a **strongSwan IKEv2 VPN server**,
 published to GitHub Container Registry (GHCR) and deployed on a Linux VPS with
 Docker Compose v2.
@@ -100,7 +102,8 @@ strongswan-docker/
 ├── compose.yaml
 ├── .env.example                 # Copy to .env on VPS and fill in
 ├── .gitignore
-└── README.md
+├── README.md
+└── README.ru.md                 # Russian translation of this guide
 ```
 
 ---
@@ -141,10 +144,10 @@ To enable the package, visit:
 **GitHub → your profile → Packages → strongswan-docker → Package settings →
 Change visibility** (set to Public or leave Private as needed).
 
-To pull the image manually:
+If the package visibility is set to **Public**, you can pull the image without
+logging in:
 
 ```bash
-echo $CR_PAT | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
 docker pull ghcr.io/antonskalkin73/strongswan-docker:latest
 ```
 
