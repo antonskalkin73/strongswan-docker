@@ -13,6 +13,8 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  PUBLISH_IMAGE: ${{ github.event_name != 'pull_request' }}
+  PUBLISH_RELEASE_TAGS: ${{ github.ref == format('refs/heads/{0}', 'main') || startsWith(github.ref, 'refs/tags/v') }}
 
 jobs:
   build-and-push:
@@ -31,7 +33,28 @@ jobs:
           set -euo pipefail
 
           base_image="$(awk '/^FROM / { print $2; exit }' Dockerfile)"
-          version="$(docker run --rm "$base_image" sh -lc "apt-get update >/dev/null && apt-cache policy strongswan | awk '/Candidate:/ { print \\$2; exit }' | sed -E 's/^[0-9]+://; s/[-+~].*$//'")"
+          package_version="$(
+            docker run --rm "$base_image" sh -lc '
+              set -e
+              apt-get update >/dev/null
+              apt-cache policy strongswan |
+                awk "/Candidate:/ { print \$2; exit }"
+            '
+          )"
+
+          if [ -z "$package_version" ]; then
+            echo "::error::Failed to detect strongSwan package version from $base_image"
+            exit 1
+          fi
+
+          # Convert Debian package version to a Docker-tag-safe upstream version.
+          # Example: 1:5.9.13-2ubuntu4.24.04.1 -> 5.9.13
+          version="$(printf '%s\n' "$package_version" | sed -E 's/^[0-9]+://; s/[-+~].*$//')"
+
+          if [ -z "$version" ]; then
+            echo "::error::Failed to normalize strongSwan package version: $package_version"
+            exit 1
+          fi
 
           echo "Detected strongSwan version: $version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -48,15 +71,15 @@ jobs:
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ github.event_name != 'pull_request' }}
-            type=raw,value=${{ steps.strongswan.outputs.version }},enable=${{ github.event_name != 'pull_request' && steps.strongswan.outputs.version != '' }}
+            type=raw,value=latest,enable=${{ env.PUBLISH_RELEASE_TAGS == 'true' }}
+            type=raw,value=${{ steps.strongswan.outputs.version }},enable=${{ env.PUBLISH_RELEASE_TAGS == 'true' && steps.strongswan.outputs.version != '' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       # Log in to GHCR using the GitHub Actions token – no extra secrets required.
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
+        if: env.PUBLISH_IMAGE == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -67,7 +90,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ env.PUBLISH_IMAGE == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # Use GitHub Actions cache to speed up subsequent builds.
