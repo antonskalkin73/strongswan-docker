@@ -137,9 +137,12 @@ docker image inspect strongswan-local
 
 | Событие | Тег образа |
 |---|---|
-| Push в `main` | `latest` |
-| Push тега `v1.2.3` | `1.2.3`, `1.2`, `latest` |
+| Push в `main` | `latest`, `<версия-strongSwan>` |
+| Push тега `v1.2.3` | `1.2.3`, `1.2`, `latest`, `<версия-strongSwan>` |
 | Pull request | Только сборка, без push |
+
+Дополнительно каждый опубликованный образ получает тег, совпадающий с версией
+strongSwan, установленной внутри контейнера, например `5.9.13`.
 
 Workflow использует `secrets.GITHUB_TOKEN` — дополнительные секреты или PAT не
 нужны.  

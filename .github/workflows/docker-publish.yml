@@ -25,9 +25,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Detect strongSwan version
+        id: strongswan
+        run: |
+          set -euo pipefail
+
+          base_image="$(awk '/^FROM / { print $2; exit }' Dockerfile)"
+          version="$(docker run --rm "$base_image" sh -lc "apt-get update >/dev/null && apt-cache policy strongswan | awk '/Candidate:/ { print \\$2; exit }' | sed -E 's/^[0-9]+://; s/[-+~].*$//'")"
+
+          echo "Detected strongSwan version: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       # Extract metadata (tags, labels) for the Docker image.
-      # - main branch  → ghcr.io/<owner>/<repo>:latest
-      # - v1.2.3 tag   → ghcr.io/<owner>/<repo>:1.2.3 and :latest
+      # - published image → ghcr.io/<owner>/<repo>:latest and :<strongswan-version>
+      # - v1.2.3 tag      → ghcr.io/<owner>/<repo>:1.2.3 and :1.2
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -37,7 +48,8 @@ jobs:
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
+            type=raw,value=latest,enable=${{ github.event_name != 'pull_request' }}
+            type=raw,value=${{ steps.strongswan.outputs.version }},enable=${{ github.event_name != 'pull_request' && steps.strongswan.outputs.version != '' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

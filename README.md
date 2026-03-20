@@ -134,9 +134,12 @@ Images are published automatically by the GitHub Actions workflow
 
 | Event | Image tag |
 |---|---|
-| Push to `main` | `latest` |
-| Push of tag `v1.2.3` | `1.2.3`, `1.2`, `latest` |
+| Push to `main` | `latest`, `<strongswan-version>` |
+| Push of tag `v1.2.3` | `1.2.3`, `1.2`, `latest`, `<strongswan-version>` |
 | Pull request | Build only, no push |
+
+Additionally, every published image gets a tag matching the installed
+strongSwan version inside the container, for example `5.9.13`.
 
 The workflow uses `secrets.GITHUB_TOKEN` – no additional secrets or PATs are
 required.  
