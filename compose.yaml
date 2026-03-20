@@ -1,0 +1,51 @@
+# Docker Compose v2 – strongSwan VPN server
+#
+# Pull the prebuilt image from GHCR:
+#   docker compose pull
+#   docker compose up -d
+#
+# Requires the following files to exist on the host BEFORE starting:
+#   ./config/ipsec.conf
+#   ./config/strongswan.conf
+#   ./config/ipsec.secrets   (NOT the .example file – the real one with secrets)
+#   ./certs/                 (directory containing server cert/key and CA cert)
+#
+# See README.md for full setup instructions.
+
+services:
+  strongswan:
+    # Pin to a specific version tag in production to avoid unexpected updates,
+    # e.g. ghcr.io/antonskalkin73/strongswan-docker:1.0.0
+    image: ghcr.io/antonskalkin73/strongswan-docker:latest
+    restart: unless-stopped
+
+    # Host networking gives strongSwan direct access to the physical network
+    # interface and simplifies UDP 500/4500 handling on a VPS.
+    network_mode: host
+
+    # Required Linux capabilities for managing IPsec and network routes.
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+
+    # Kernel tunables needed for VPN operation.
+    sysctls:
+      net.ipv4.ip_forward: 1
+      net.ipv4.conf.all.accept_redirects: 0
+      net.ipv4.conf.all.send_redirects: 0
+      net.ipv6.conf.all.forwarding: 1
+
+    volumes:
+      # strongSwan configuration – read-only because the container should not
+      # modify these files.
+      - ./config/ipsec.conf:/etc/ipsec.conf:ro
+      - ./config/strongswan.conf:/etc/strongswan.conf:ro
+
+      # Secrets file – read-only; must NOT be committed to version control.
+      - ./config/ipsec.secrets:/etc/ipsec.secrets:ro
+
+      # Certificate store – read-only; contains server cert/key and CA cert.
+      - ./certs:/etc/ipsec.d:ro
+
+    env_file:
+      - .env
