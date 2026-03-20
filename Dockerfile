@@ -23,10 +23,9 @@ RUN apt-get update && \
         flex \
         make \
         tar \
-        iptables \
-        iproute2 \
         ca-certificates && \
     tar -xzf /tmp/strongswan.tar.gz -C /tmp && \
+    test -d /tmp/strongswan-${STRONGSWAN_VERSION} && \
     cd /tmp/strongswan-${STRONGSWAN_VERSION} && \
     ./configure \
         --prefix=/usr \
@@ -39,6 +38,21 @@ RUN apt-get update && \
         --enable-starter && \
     make -j"$(nproc)" && \
     make install
+
+RUN mkdir -p \
+        /opt/strongswan-runtime/usr/bin \
+        /opt/strongswan-runtime/usr/sbin \
+        /opt/strongswan-runtime/usr/lib \
+        /opt/strongswan-runtime/usr/libexec \
+        /opt/strongswan-runtime/etc \
+        /opt/strongswan-runtime/usr/share && \
+    cp -a /usr/bin/pki /opt/strongswan-runtime/usr/bin/ && \
+    cp -a /usr/sbin/ipsec /opt/strongswan-runtime/usr/sbin/ && \
+    cp -a /usr/libexec/ipsec /opt/strongswan-runtime/usr/libexec/ && \
+    cp -a /usr/lib/ipsec /opt/strongswan-runtime/usr/lib/ && \
+    find /usr/lib \( -name 'libstrongswan.so*' -o -name 'libcharon.so*' \) -exec cp -a {} /opt/strongswan-runtime/usr/lib/ \; && \
+    cp -a /etc/strongswan.conf /etc/strongswan.d /opt/strongswan-runtime/etc/ && \
+    cp -a /usr/share/strongswan /opt/strongswan-runtime/usr/share/
 
 FROM ubuntu:24.04
 
@@ -58,16 +72,7 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/sbin/ipsec /usr/sbin/ipsec
-COPY --from=builder /usr/bin/pki /usr/bin/pki
-COPY --from=builder /usr/sbin/swanctl /usr/sbin/swanctl
-COPY --from=builder /usr/libexec/ipsec /usr/libexec/ipsec
-COPY --from=builder /usr/lib/ipsec /usr/lib/ipsec
-COPY --from=builder /usr/lib/libstrongswan.so* /usr/lib/
-COPY --from=builder /usr/lib/libcharon.so* /usr/lib/
-COPY --from=builder /etc/strongswan.conf /etc/strongswan.conf
-COPY --from=builder /etc/strongswan.d /etc/strongswan.d
-COPY --from=builder /usr/share/strongswan /usr/share/strongswan
+COPY --from=builder /opt/strongswan-runtime/ /
 
 # Copy the entrypoint script and make it executable.
 COPY entrypoint.sh /entrypoint.sh
