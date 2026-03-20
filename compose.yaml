@@ -15,7 +15,7 @@
 services:
   strongswan:
     # Pin to a specific version tag in production to avoid unexpected updates,
-    # e.g. ghcr.io/antonskalkin73/strongswan-docker:1.0.0
+    # e.g. ghcr.io/antonskalkin73/strongswan-docker:6.0.4
     image: ghcr.io/antonskalkin73/strongswan-docker:latest
     restart: unless-stopped
 

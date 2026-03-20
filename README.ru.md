@@ -118,11 +118,24 @@ strongswan-docker/
 git clone https://github.com/antonskalkin73/strongswan-docker.git
 cd strongswan-docker
 
-# Соберите образ локально
-docker build -t strongswan-local .
+# Скачайте последний upstream-релиз strongSwan в build context
+STRONGSWAN_VERSION="$(
+  basename "$(
+    curl -fsSLI -o /dev/null -w '%{url_effective}' \
+      https://github.com/strongswan/strongswan/releases/latest
+  )"
+)"
+curl -fsSL -o strongswan.tar.gz \
+  "https://github.com/strongswan/strongswan/releases/download/${STRONGSWAN_VERSION}/strongswan-${STRONGSWAN_VERSION}.tar.gz"
+
+# Соберите образ локально из upstream release tarball
+docker build --build-arg STRONGSWAN_VERSION="$STRONGSWAN_VERSION" -t strongswan-local .
 
 # Проверьте метаданные образа
 docker image inspect strongswan-local
+
+# При желании удалите скачанный архив исходников
+rm -f strongswan.tar.gz
 ```
 
 Для локального тестирования всё равно нужны runtime-конфиги (см.
@@ -142,7 +155,10 @@ docker image inspect strongswan-local
 | Pull request | Только сборка, без push |
 
 Дополнительно каждый опубликованный образ получает тег, совпадающий с версией
-strongSwan, установленной внутри контейнера, например `5.9.13`.
+strongSwan, установленной внутри контейнера, например `6.0.4`.
+
+Перед сборкой workflow скачивает последний upstream release tarball напрямую из
+<https://github.com/strongswan/strongswan/releases/>.
 
 Workflow использует `secrets.GITHUB_TOKEN` — дополнительные секреты или PAT не
 нужны.  

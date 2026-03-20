@@ -115,11 +115,24 @@ strongswan-docker/
 git clone https://github.com/antonskalkin73/strongswan-docker.git
 cd strongswan-docker
 
-# Build the image locally
-docker build -t strongswan-local .
+# Download the latest upstream strongSwan release into the build context
+STRONGSWAN_VERSION="$(
+  basename "$(
+    curl -fsSLI -o /dev/null -w '%{url_effective}' \
+      https://github.com/strongswan/strongswan/releases/latest
+  )"
+)"
+curl -fsSL -o strongswan.tar.gz \
+  "https://github.com/strongswan/strongswan/releases/download/${STRONGSWAN_VERSION}/strongswan-${STRONGSWAN_VERSION}.tar.gz"
+
+# Build the image locally from the upstream release tarball
+docker build --build-arg STRONGSWAN_VERSION="$STRONGSWAN_VERSION" -t strongswan-local .
 
 # Inspect the image
 docker image inspect strongswan-local
+
+# Optional cleanup of the downloaded source archive
+rm -f strongswan.tar.gz
 ```
 
 To test locally you still need the runtime config files (see
@@ -139,7 +152,10 @@ Images are published automatically by the GitHub Actions workflow
 | Pull request | Build only, no push |
 
 Additionally, every published image gets a tag matching the installed
-strongSwan version inside the container, for example `5.9.13`.
+strongSwan version inside the container, for example `6.0.4`.
+
+The workflow downloads the latest upstream release tarball directly from
+<https://github.com/strongswan/strongswan/releases/> before building the image.
 
 The workflow uses `secrets.GITHUB_TOKEN` – no additional secrets or PATs are
 required.  

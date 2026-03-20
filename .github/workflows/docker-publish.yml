@@ -27,34 +27,46 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Detect strongSwan version
+      - name: Fetch latest strongSwan release
         id: strongswan
         run: |
           set -euo pipefail
 
-          base_image="$(awk '/^FROM / { print $2; exit }' Dockerfile)"
-          package_version="$(
-            docker run --rm "$base_image" sh -lc '
-              set -e
-              apt-get update >/dev/null
-              apt-cache policy strongswan |
-                awk "/Candidate:/ { print \$2; exit }"
-            '
+          release_json="$(
+            curl -fsSL \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ github.token }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/repos/strongswan/strongswan/releases/latest
+          )"
+          version="$(printf '%s' "$release_json" | jq -r '.tag_name')"
+          tarball_name="strongswan-${version}.tar.gz"
+          tarball_url="$(
+            printf '%s' "$release_json" |
+              jq -r --arg name "$tarball_name" '.assets[] | select(.name == $name) | .browser_download_url'
+          )"
+          tarball_digest="$(
+            printf '%s' "$release_json" |
+              jq -r --arg name "$tarball_name" '.assets[] | select(.name == $name) | .digest'
           )"
 
-          if [ -z "$package_version" ]; then
-            echo "::error::Failed to detect strongSwan package version from $base_image"
+          if [ -z "$version" ] || [ "$version" = "null" ]; then
+            echo "::error::Failed to detect latest strongSwan release version"
             exit 1
           fi
 
-          # Convert Debian package version to a Docker-tag-safe upstream version.
-          # Example: 1:5.9.13-2ubuntu4.24.04.1 -> 5.9.13
-          version="$(printf '%s\n' "$package_version" | sed -E 's/^[0-9]+://; s/[-+~].*$//')"
-
-          if [ -z "$version" ]; then
-            echo "::error::Failed to normalize strongSwan package version: $package_version"
+          if [ -z "$tarball_url" ] || [ "$tarball_url" = "null" ]; then
+            echo "::error::Failed to find release asset $tarball_name"
             exit 1
           fi
+
+          if [ -z "$tarball_digest" ] || [ "$tarball_digest" = "null" ]; then
+            echo "::error::Failed to find SHA-256 digest for $tarball_name"
+            exit 1
+          fi
+
+          curl -fsSL -o strongswan.tar.gz "$tarball_url"
+          printf '%s  %s\n' "${tarball_digest#sha256:}" strongswan.tar.gz | sha256sum -c -
 
           echo "Detected strongSwan version: $version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -91,6 +103,8 @@ jobs:
         with:
           context: .
           push: ${{ env.PUBLISH_IMAGE == 'true' }}
+          build-args: |
+            STRONGSWAN_VERSION=${{ steps.strongswan.outputs.version }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # Use GitHub Actions cache to speed up subsequent builds.
