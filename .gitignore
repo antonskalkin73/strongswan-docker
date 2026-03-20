@@ -1,0 +1,19 @@
+# ── Secrets and runtime credentials ────────────────────────────────────────
+# Never commit these files.
+.env
+config/ipsec.secrets
+certs/*
+!certs/.gitkeep
+
+# ── Local build artifacts ────────────────────────────────────────────────────
+*.log
+*.pid
+
+# ── Editor / OS noise ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
