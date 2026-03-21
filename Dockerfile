@@ -21,7 +21,7 @@ RUN apt-get update && \
         tar \
         ${build_deps} && \
     tar -xzf /tmp/strongswan.tar.gz -C /tmp && \
-    test -d /tmp/strongswan-${STRONGSWAN_VERSION} && \
+    test -d /tmp/strongswan-${STRONGSWAN_VERSION} || (echo "Expected source directory /tmp/strongswan-${STRONGSWAN_VERSION} after extracting strongswan.tar.gz" >&2 && exit 1) && \
     cd /tmp/strongswan-${STRONGSWAN_VERSION} && \
     ./configure \
         --prefix=/usr \
