@@ -7,16 +7,36 @@ LABEL org.opencontainers.image.source="https://github.com/antonskalkin73/strongs
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install strongSwan and required runtime packages; clean up apt cache to keep the image small.
+# The release tarball is downloaded by the workflow (or before a local build) and
+# added to the build context as strongswan.tar.gz.
+ARG STRONGSWAN_VERSION
+COPY strongswan.tar.gz /tmp/strongswan.tar.gz
+
 RUN apt-get update && \
+    build_deps="build-essential pkg-config libgmp-dev libssl-dev bison flex make" && \
     apt-get install -y --no-install-recommends \
-        strongswan \
-        strongswan-pki \
-        libstrongswan-extra-plugins \
-        libstrongswan-standard-plugins \
+        ca-certificates \
         iptables \
         iproute2 \
-        ca-certificates && \
+        tar \
+        ${build_deps} && \
+    tar -xzf /tmp/strongswan.tar.gz -C /tmp && \
+    test -d /tmp/strongswan-${STRONGSWAN_VERSION} || (echo "Expected source directory /tmp/strongswan-${STRONGSWAN_VERSION} after extracting strongswan.tar.gz" >&2 && exit 1) && \
+    cd /tmp/strongswan-${STRONGSWAN_VERSION} && \
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --enable-openssl \
+        --enable-pki \
+        --enable-eap-identity \
+        --enable-eap-mschapv2 \
+        --enable-stroke \
+        --enable-starter && \
+    make -j"$(nproc)" && \
+    make install && \
+    cd / && \
+    rm -rf /tmp/strongswan* && \
+    apt-get purge -y --auto-remove ${build_deps} && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

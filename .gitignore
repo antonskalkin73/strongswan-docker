@@ -8,6 +8,7 @@ certs/*
 # ── Local build artifacts ────────────────────────────────────────────────────
 *.log
 *.pid
+strongswan.tar.gz
 
 # ── Editor / OS noise ───────────────────────────────────────────────────────
 .DS_Store
