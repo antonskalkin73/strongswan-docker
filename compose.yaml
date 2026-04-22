@@ -29,11 +29,11 @@ services:
       - SYS_MODULE
 
     # Kernel tunables needed for VPN operation.
-    sysctls:
-      net.ipv4.ip_forward: 1
-      net.ipv4.conf.all.accept_redirects: 0
-      net.ipv4.conf.all.send_redirects: 0
-      net.ipv6.conf.all.forwarding: 1
+    # sysctls:
+      # net.ipv4.ip_forward: 1
+      # net.ipv4.conf.all.accept_redirects: 0
+      # net.ipv4.conf.all.send_redirects: 0
+      # net.ipv6.conf.all.forwarding: 1
 
     volumes:
       # strongSwan configuration – read-only because the container should not
