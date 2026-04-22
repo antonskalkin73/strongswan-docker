@@ -208,9 +208,13 @@ The certs must be placed in the `certs/` subdirectories that strongSwan expects:
 mkdir -p certs/cacerts certs/certs certs/private
 
 # 1. Generate CA private key and self-signed certificate
-docker run --rm -v "$(pwd)/certs:/out" \
+docker run --rm \
+  --env-file .env \
+  -v "$(pwd)/certs:/out" \
+  --entrypoint sh \
   ghcr.io/antonskalkin73/strongswan-docker:latest \
-  sh -c '
+  -c '
+    mkdir -p /out/private /out/cacerts
     ipsec pki --gen --type rsa --size 4096 --outform pem > /out/private/ca-key.pem
     ipsec pki --self --ca --lifetime 3650 \
       --in /out/private/ca-key.pem --type rsa \
@@ -221,17 +225,21 @@ docker run --rm -v "$(pwd)/certs:/out" \
 #    Set FQDN to the value you placed in .env (VPN_FQDN=...).
 FQDN=vpn.example.com   # <-- change this to your actual FQDN
 
-docker run --rm -v "$(pwd)/certs:/out" \
-  -e FQDN="$FQDN" \
+docker run --rm \
+  --env-file .env \
+  -v "$(pwd)/certs:/out" \
+  --entrypoint sh \
   ghcr.io/antonskalkin73/strongswan-docker:latest \
-  sh -c '
+  -c '
     ipsec pki --gen --type rsa --size 4096 --outform pem > /out/private/server-key.pem
-    ipsec pki --pub --in /out/private/server-key.pem --type rsa |
+    ipsec pki --pub --in /out/private/server-key.pem --type rsa | \
       ipsec pki --issue --lifetime 1825 \
         --cacert /out/cacerts/ca-cert.pem \
-        --cakey  /out/private/ca-key.pem \
-        --dn "CN=$FQDN" --san "$FQDN" \
-        --flag serverAuth --flag ikeIntermediate \
+        --cakey /out/private/ca-key.pem \
+        --dn "CN=$VPN_FQDN" \
+        --san "$VPN_FQDN" \
+        --flag serverAuth \
+        --flag ikeIntermediate \
         --outform pem > /out/certs/server-cert.pem
   '
 
